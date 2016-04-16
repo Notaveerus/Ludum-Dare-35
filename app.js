@@ -1,10 +1,10 @@
 $(document).ready(function() {
-  Crafty.init();
+  Crafty.init(1280,500);
 
 Crafty.scene("main", function(){
     Crafty.background("black")
     var screen = Crafty.e("2D, Mouse, DOM")
-       .attr({ w:1000, h:1000, x:0, y:0 })
+       .attr({ w:1280, h:500, x:0, y:0 })
        //screen.background("red")
        .bind('MouseMove', function(e)
        {
@@ -16,16 +16,18 @@ Crafty.scene("main", function(){
                x: player.x+player.w/2,
                y: player.y+player.w/2
              }
-             player.rotation = 0;
-             player.rotation = -Engine.degree(pos1, pos2,false);
+             if(player.canMove){
+               player.rotation = 0;
+               player.rotation = -Engine.degree(pos1, pos2,false);
+             }
 
 
          })
          .bind("MouseDown", function(e){
-           if(player.mode === 0)
+           if(player.canAttack)
               player.attack(Crafty.mousePos.x, Crafty.mousePos.y);
-           else if(player.mode === 1)
-            player.dash(Crafty.mousePos.x, Crafty.mousePos.y);
+           else if(player.canDash)
+            player.dash(Crafty.mousePos.x, Crafty.mousePos.y,250,500);
          })
 
 
@@ -33,17 +35,22 @@ Crafty.scene("main", function(){
       .text("Score: 0")
       .attr({x: Crafty.viewport.width - 300, y: Crafty.viewport.height - 50, w: 200, h:50})
       .css({color: "#fff"});
-      var enemy = Crafty.e("2D, DOM, Collsion, Enemy, Tween, Color")
+      var enemy = Crafty.e("2D, DOM, Collision, Enemy, Tween, Color")
       enemy.attr({x:50, y:50, w:15, h:15})
       enemy.color("pink")
+      .collision()
+      .onHit("Attack",function(){
+        this.destroy();
+      })
 
 
 
     Crafty.c("Player", {
       mode: 0,
-      canAttack:false,
+      canAttack:true,
       canDash:false,
       canBlock: false,
+      canMove: true,
       aMode: function(){
         this.color("red"),
         this.fourway(250)
@@ -72,22 +79,30 @@ Crafty.scene("main", function(){
         this.canBlock = true;
         this.mode = 2
       },
-      dash: function(x, y){
-        var tmpDir = Engine.degree({x:x,y:y}, {x:player.x+player.w/2,y:player.y+player.w/2},true);
-        var tmpX = (player.x+player.w/2) + (250 *  Math.cos(tmpDir-Math.PI/2));
-        var tmpY = player.y+player.w/2 + (250 * Math.sin(tmpDir+Math.PI/2));
-        player.tween({x:tmpX,y:tmpY},300,0.7)
+      dash: function(x, y,dist,time){
+        var tmpDir = Engine.degree({x:x,y:y}, {x:this.x+this.w/2,y:this.y+this.w/2},true);
+        var tmpX = (this.x) + (dist *  Math.cos(tmpDir-Math.PI/2));
+        var tmpY = (this.y) + (dist * Math.sin(tmpDir+Math.PI/2));
+        this.tween({x:tmpX,y:tmpY},time,"easeOutQuad")
       },
       attack: function(x,y){
+        var scale = 70;
+        var offset = 20;
         var tmpDir = Engine.degree({x:x,y:y}, {x:player.x+player.w/2,y:player.y+player.w/2},true);
-        var tmpX = (player.x+player.w/2) + (player.w/2 *  Math.cos(tmpDir-Math.PI/2));
-        var tmpY = player.y+player.w/2 + (player.w/2 * Math.sin(tmpDir+Math.PI/2));
-        var atkHitBox = Crafty.e("2D,Collision,SolidHitBox,Attack")
+        var tmpX = (player.x+player.w/2) + ((player.w/2+scale/2-offset) *  Math.cos(tmpDir-Math.PI/2));
+        var tmpY = player.y+player.w/2 + ((player.w/2+scale/2-offset) * Math.sin(tmpDir+Math.PI/2));
+        var atkHitBox = Crafty.e("2D,Collision,SolidHitBox,Attack,Delay")
+        .attr({x:tmpX-scale/2,y:tmpY-scale/2,w:scale,h:scale})
         .origin("center")
-        .attr({x:tmpX,y:tmpY,w:30,h:30})
-        .rotation(tmpDir)
-
+        atkHitBox.rotation = player.rotation
         this.attach(atkHitBox)
+        player.dash(x,y,20, 200)
+        player.canMove = false;
+        Crafty.e("Delay").delay(function() {
+          atkHitBox.destroy();
+          player.canMove = true;
+        }, 200);
+
       }
 
     })
