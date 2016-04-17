@@ -8,18 +8,11 @@ Crafty.scene("main", function(){
        //screen.background("red")
        .bind('MouseMove', function(e)
        {
-             var pos1 = {
-               x: Crafty.mousePos.x,
-               y: Crafty.mousePos.y
-             }
-             var pos2 = {
-               x: player.x+player.w/2,
-               y: player.y+player.w/2
-             }
-             if(player.canMove){
-               player.rotation = 0;
-               player.rotation = -Engine.degree(pos1, pos2,false);
-             }
+         var playerPos = {
+           x: player.x+player.w/2,
+           y: player.y+player.w/2
+         }
+         player.rotation = Engine.getRotation(playerPos,Crafty.mousePos);
 
 
          })
@@ -30,7 +23,79 @@ Crafty.scene("main", function(){
             player.dash(Crafty.mousePos.x, Crafty.mousePos.y,250,500);
          })
 
+         Crafty.c("Enemy", {
+           type: 0,
+           fireDelay: 0,
+           range: 650,
+           ranged: function(){
+             var targetPos = {
+               x: player.x+player.w/2,
+               y: player.y+player.w/2
+             }
+             var currPos = {
+               x:this.x,
+               y:this.y
+             }
+             this.rotation = Engine.getRotation(currPos,targetPos);
+             var dist = Math.sqrt((currPos.x-=targetPos.x)*currPos.x + (currPos.y-=targetPos.y)*currPos.y)
+             console.log(dist)
+             if(dist<this.range && !(this.fireDelay > 0)){
+               this.cancelTween;
+               console.log("shoot")
+               var bullet = Crafty.e("2D,Color, Collision,Bullet,DOM, Motion")
+               .attr({x:this.x-this.w/2,y:this.y-this.w/2,w:5,h:5})
+               .color("green")
+               var vel = bullet.velocity()
+               var spread = Math.floor(Math.random()*201)-100
+               targetPos.x += spread;
+               targetPos.y += spread;
+               var angle = Engine.degree(targetPos,currPos,true)
+               vel.x = 750 * Math.cos(angle -Math.PI/2)
+               vel.y = 750 * Math.sin(angle +Math.PI/2)
 
+               Crafty.e("Delay").delay(function() {
+                 bullet.destroy();
+
+               }, 4000);
+               this.fireDelay = 15
+             }
+             else if(this.fireDelay === 0 && dist>this.range){
+               var tmpDir = Engine.degree({x:targetPos.x,y:targetPos.y}, {x:this.x+this.w/2,y:this.y+this.w/2},true);
+               var tmpX = (this.x) + ((dist-this.range)*  Math.cos(tmpDir-Math.PI/2));
+               var tmpY = (this.y) + ((dist-this.range) * Math.sin(tmpDir+Math.PI/2));
+               this.tween({x:tmpX,y:tmpY},dist,"linear")
+             }
+             else{
+               this.fireDelay--;
+             }
+           },
+           melee: function(){
+
+             var targetPos = {
+               x: player.x+player.w/2,
+               y: player.y+player.w/2
+             }
+             var currPos = {
+               x:this.x,
+               y:this.y
+             }
+             console.log((targetPos.x-currPos.x)+", "+(targetPos.y-currPos.y))
+             this.rotation = Engine.getRotation(currPos,targetPos);
+             var dist = Math.sqrt(targetPos.x*currPos.x)+(targetPos.y*currPos.y)
+
+             var tmpDir = Engine.degree({x:targetPos.x,y:targetPos.y}, {x:this.x+this.w/2,y:this.y+this.w/2},true);
+             var tmpX = (this.x) + (dist *  Math.cos(tmpDir-Math.PI/2));
+             var tmpY = (this.y) + (dist * Math.sin(tmpDir+Math.PI/2));
+             this.tween({x:tmpX,y:tmpY},6*dist,"linear")
+
+
+           },
+           shielded: function(){
+
+           }
+
+
+         })
     var score = Crafty.e("2D, DOM, Text")
       .text("Score: 0")
       .attr({x: Crafty.viewport.width - 300, y: Crafty.viewport.height - 50, w: 200, h:50})
@@ -38,6 +103,10 @@ Crafty.scene("main", function(){
       var enemy = Crafty.e("2D, DOM, Collision, Enemy, Tween, Color")
       enemy.attr({x:50, y:50, w:15, h:15})
       enemy.color("pink")
+      .bind("EnterFrame",function(){
+
+        this.ranged()
+      })
       .collision()
       .onHit("Attack",function(){
         this.destroy();
@@ -127,7 +196,7 @@ Crafty.scene("main", function(){
 				}
       })
       .bind("KeyDown", function(e){
-        console.log("test")
+
         if(e.keyCode === Crafty.keys.SPACE){
           player.sMode();
         }
@@ -143,15 +212,11 @@ Crafty.scene("main", function(){
         if(this.mode !== 2)
           Crafty.scene("main")
       })
+      .onHit("Bullet", function(e){
+        Crafty.scene("main")
+      })
 
-    var Engine = {
-	     degree: function(pos2, pos1, inRad) {
-    		var dy = pos2.x - pos1.x;
-    		var dx = pos2.y - pos1.y;
-    		var theta = Math.atan2(dy,dx);
-    		return theta *= inRad ? 1 : (180/Math.PI);
-      }
-     }
+
      Crafty.c("Triangle", {
     Triangle: function(height, width, color, alpha) {
         this.h = height; // TODO check for bad values
