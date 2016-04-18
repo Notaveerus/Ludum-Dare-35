@@ -1,12 +1,12 @@
 $(document).ready(function() {
-  Crafty.init(1280,500);
+  Crafty.init(1280,720);
 
   Crafty.scene("main", function(){
     Crafty.background("black")
     var enemyCount = 1;
     var lastCount;
     var screen = Crafty.e("2D, Mouse, DOM")
-    .attr({ w:1280, h:500, x:0, y:0 })
+    .attr({ w:1280, h:720, x:0, y:0 })
     .bind('MouseMove', function(e) {
       var playerPos = {
         x: player.x+player.w/2,
@@ -29,32 +29,58 @@ $(document).ready(function() {
     })
     .bind("EnterFrame",function(){
       if(enemyCount ===1 && lastCount > 1){
-        console.log(" yes")
-        initEnemies(lastCount*1.2)
+        enemyCount++
+        this.timeout(function(){
+          enemyCount--
+          initEnemies(lastCount+2)
+        },2000)
+
+
       }
       else if(enemyCount === 1)
         initEnemies(5)
     })
 
     Crafty.c("Enemy", {
-      required: "2D, DOM, Collision, Tween, Color, Motion",
+      required: "2D, DOM, Collision, Tween, Color, Motion, AngularMotion",
       fireDelay: 0,
-      range: 650,
+      range: 500,
+      start: 0,
       init: function(){
         this.w = 20;
         this.h = 20;
-        this.x = Crafty.math.randomInt(0,Crafty.viewport.width)
-        this.y = Crafty.math.randomInt(0,Crafty.viewport.height)
+        var spawn = Engine.getSpawn(Crafty.viewport,30)
+        this.x = spawn.x
+        this.y = spawn.y
         this.origin("center")
-        this.typeArray = [this.ranged,this.melee,this.shielded]
-        this.type = this.typeArray[Math.floor(Math.random()*this.typeArray.length)]
+        this.typeArray = [this.ranged,this.melee]//,this.shielded]
+        this.type = this.typeArray[Crafty.math.randomInt(0,1)]
+        console.log(this.x+", "+this.y+", "+this.color)
         this.onHit("Attack",function(){
-          this.destroy();
-          enemyCount--;
-          console.log(enemyCount)
+          if(this.id !==3){
+            this.destroy();
+            enemyCount--;
+            score.text("Score: "+(parseInt(score._text.split(":")[1])+10))
+            console.log(enemyCount)
+          }
+        })
+        this.onHit("Player",function(){
+            // if(this._x > player.x+player.w-this.w){
+            //   this.x = player.w-this.w;
+            // }
+            // if(this._x < player.x+player.width){
+            //   this.x = player.x+player.width
+            // }
+            // if(this._y > player.y+player.w-this.w) {
+            //   this.y = player.x-this.w;
+            // }
+            // if(this._y < player.y && this._y < player.y+player.w) {
+            //   this.y = player.y-this.y;
+            //}
         })
       },
       ranged: function(){
+        this.id=1
         this.color("green")
         var targetPos = {
           x: player.x+player.w/2,
@@ -93,7 +119,7 @@ $(document).ready(function() {
             bullet.destroy();
 
           }, 2000);
-          this.fireDelay = 35
+          this.fireDelay = 45
         }
         else if(this.fireDelay === 0 && dist>this.range){
           var tmpDir = Engine.degree({x:targetPos.x,y:targetPos.y}, {x:this.x+this.w/2,y:this.y+this.w/2},true);
@@ -106,6 +132,7 @@ $(document).ready(function() {
         }
       },
       melee: function(){
+        this.i=2;
         this.color("red")
         var targetPos = {
           x: player.x+player.w/2,
@@ -127,6 +154,7 @@ $(document).ready(function() {
 
       },
       shielded: function(){
+        this.id=3;
         this.color("blue")
         var targetPos = {
           x: player.x+player.w/2,
@@ -138,7 +166,25 @@ $(document).ready(function() {
         }
 
         var rotate = Engine.getRotation(currPos,targetPos);
-        this.tween({rotation:rotate},1000,"linear")
+        var dist = rotate-this.rotation;
+
+          this.tween({rotation: rotate},1000,"linear")
+          if(this.start===0){
+            var scale = 15;
+            var tmpDir = Engine.degree({x:targetPos.x,y:targetPos.y}, {x:this.x+this.w/2,y:this.y+this.w/2},true);
+             var tmpX = (this.x+this.w/2) + ((this.w/2+30/2))
+            var tmpY = this.y+this.w/2 + ((this.w/2+30/2))
+            this.shield = Crafty.e("2D,DOM, Collision,Delay,Color")
+            this.shield.attr({x:tmpX-50,y:tmpY,w:50,h:scale})
+            this.shield.origin("center")
+            this.shield.color("red")
+            this.onHit("Attack",function(){
+              this.shielded = Crafty.frame()
+            })
+
+            this.attach(this.shield)
+            this.start++
+          }
 
         var dist = Math.sqrt(targetPos.x*currPos.x)+(targetPos.y*currPos.y)
         var tmpDir = Engine.degree({x:targetPos.x,y:targetPos.y}, {x:this.x+this.w/2,y:this.y+this.w/2},true);
@@ -221,7 +267,7 @@ $(document).ready(function() {
         .origin("center")
         atkHitBox.rotation = player.rotation
         this.attach(atkHitBox)
-        player.dash(x,y,20, 200)
+
         player.canMove = false;
         Crafty.e("Delay").delay(function() {
           atkHitBox.destroy();
@@ -267,11 +313,27 @@ $(document).ready(function() {
       .collision()
       .onHit("Enemy", function(e){
         if(this.mode !== 2&& !this.invincible)
-        Crafty.scene("main")
+
+          score.x = Crafty.viewport.width/2
+          score.y = Crafty.viewport.height/2
+          score.z = 100;
+          
+          score.textFont({size: '32px'})
+          Crafty.e("Delay").delay(function(){
+            Crafty.scene("main")
+          },1000)
+
       })
       .onHit("Bullet", function(e){
         if(this.mode !== 2 && !this.invincible){
-          Crafty.scene("main")
+
+          score.x = Crafty.viewport.width/2
+          score.y = Crafty.viewport.height/2
+          score.z = 100;
+          score.textFont({size: '32px'})
+          Crafty.e("Delay").delay(function(){
+            Crafty.scene("main")
+          },1000)
         }
       })
 

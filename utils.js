@@ -13,6 +13,19 @@ var Engine = {
 
 
       return -Engine.degree(pos1, playerPos,false);
+    },
+    getSpawn: function(viewport, area){
+      var x1 = viewport.x//-area;
+      var x2 = viewport.width//+area;
+      var y1 = viewport.y//-area;
+      var y2 = viewport.height//+area;
+      var spawnA = {x:x1,y:y1}
+      var spawnB = {x:x1,y:y2}
+      var spawnC = {x:x2,y:y1}
+      var spawnD = {x:x2,y:y2}
+      var spawnList = [spawnB,spawnC,spawnD]
+      return spawnList[Crafty.math.randomInt(0,2)];
+
     }
+
   }
- 
